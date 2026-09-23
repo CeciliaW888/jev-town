@@ -9,6 +9,44 @@ export interface RawChoiceAnswer {
   probabilities?: unknown;
 }
 
+/** A Noul answer: the probability that the statement is true. */
+export interface RawNoulAnswer {
+  type?: unknown;
+  noul?: unknown;
+}
+
+/** A Score answer: a probability-weighted position across the described levels. */
+export interface RawScoreAnswer {
+  type?: unknown;
+  score?: unknown;
+  legend?: unknown;
+}
+
+/** Probability from a Noul answer, or null when unusable. */
+export function beliefFromAnswer(answer: RawNoulAnswer | undefined | null): number | null {
+  if (!answer || typeof answer !== "object") return null;
+  if (typeof answer.noul !== "number" || !Number.isFinite(answer.noul)) return null;
+  return clamp01(answer.noul);
+}
+
+/**
+ * Normalises a Score answer to 0-1 across however many levels the question
+ * declared, so callers never depend on the level count.
+ */
+export function alarmFromAnswer(answer: RawScoreAnswer | undefined | null, levels: number): number | null {
+  if (!answer || typeof answer !== "object") return null;
+  if (typeof answer.score !== "number" || !Number.isFinite(answer.score)) return null;
+  if (levels < 2) return null;
+  return clamp01(answer.score / (levels - 1));
+}
+
+/** Mean of a judgement across the round, or null when no citizen has one. */
+export function meanOf(decisions: readonly Decision[], key: "belief" | "alarm"): number | null {
+  const values = decisions.map((d) => d[key]).filter((v): v is number => typeof v === "number");
+  if (values.length === 0) return null;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));

@@ -1,6 +1,6 @@
 import { ACTION_UNREST, type Action } from "./actions.ts";
 import { CITIZEN_COUNT } from "./citizens.ts";
-import { meanConfidence, tally } from "./decisions.ts";
+import { meanConfidence, meanOf, tally } from "./decisions.ts";
 import { goalLabel, type Directive, type Goal } from "./directives.ts";
 import type { Decision } from "./protocol.ts";
 
@@ -45,6 +45,25 @@ export interface RoundResult {
   unrestDelta: number;
   gameOver: boolean;
   gameOverReason?: string;
+}
+
+/**
+ * How much a round stirs the town up.
+ *
+ * When Jev has scored each citizen's alarm, that drives it: the same tally of
+ * actions means something different if the town is merely curious or genuinely
+ * frightened. `NEUTRAL_ALARM` is the level at which a round neither calms nor
+ * inflames. Rounds without alarm (the offline fallback on older data) fall back
+ * to fixed per-action weights.
+ */
+export const NEUTRAL_ALARM = 0.35;
+
+export function unrestDeltaFor(decisions: readonly Decision[]): number {
+  const alarm = meanOf(decisions, "alarm");
+  if (alarm === null) {
+    return decisions.reduce((sum, d) => sum + ACTION_UNREST[d.action], 0) / 6;
+  }
+  return (alarm - NEUTRAL_ALARM) * 62;
 }
 
 export interface RoundInput {
@@ -154,7 +173,7 @@ export function scoreRound(input: RoundInput): RoundResult {
   }
 
   const unrestDelta = Math.round(
-    decisions.reduce((sum, d) => sum + ACTION_UNREST[d.action], 0) / 6,
+    unrestDeltaFor(decisions),
   );
   const unrestAfter = Math.min(MAX_UNREST, Math.max(0, unrest + unrestDelta));
 

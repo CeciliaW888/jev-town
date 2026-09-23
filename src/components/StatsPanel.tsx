@@ -1,5 +1,6 @@
 import { ACTIONS, ACTION_LABEL, emptyTally, type Action } from "@shared/actions.ts";
 import { CITIZEN_COUNT } from "@shared/citizens.ts";
+import { meanOf } from "@shared/decisions.ts";
 import type { Decision } from "@shared/protocol.ts";
 import { MAX_TRUST, MAX_UNREST } from "@shared/scoring.ts";
 
@@ -27,6 +28,38 @@ function meanConfidenceFor(decisions: Decision[] | null, action: Action): number
   const pool = decisions.filter((d) => d.action === action);
   if (pool.length === 0) return null;
   return pool.reduce((sum, d) => sum + d.confidence, 0) / pool.length;
+}
+
+/**
+ * Two judgements Jev makes alongside the action itself: a Noul per citizen for
+ * whether they believe the broadcast, and a Score for how alarmed they are.
+ * Belief explains rounds where a true warning is shrugged off; alarm is what
+ * now drives unrest, so it is shown next to it.
+ */
+function MoodReadout({ decisions }: { decisions: Decision[] }) {
+  const believers = decisions.filter((d) => typeof d.belief === "number" && d.belief >= 0.5).length;
+  const scored = decisions.filter((d) => typeof d.belief === "number").length;
+  const alarm = meanOf(decisions, "alarm");
+  if (scored === 0 && alarm === null) return null;
+
+  return (
+    <div className="mood">
+      {scored > 0 ? (
+        <p className="mood__line">
+          <span className="mood__label">Believed it</span>
+          <span className="mood__value">
+            {believers} <small>of {scored}</small>
+          </span>
+        </p>
+      ) : null}
+      {alarm !== null ? (
+        <p className="mood__line">
+          <span className="mood__label">Town alarm</span>
+          <span className="mood__value">{Math.round(alarm * 100)}%</span>
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function StatsPanel({
@@ -75,6 +108,8 @@ export function StatsPanel({
           </span>
         </div>
       </div>
+
+      {decisions ? <MoodReadout decisions={decisions} /> : null}
 
       <h3 className="stats-panel__heading">Reactions right now</h3>
       <ul className="reaction-bars">

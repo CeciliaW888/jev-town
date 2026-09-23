@@ -41,6 +41,10 @@ export const decisionSchema = z.object({
   action: actionSchema,
   confidence: z.number().min(0).max(1),
   probabilities: z.record(actionSchema, z.number()),
+  /** Jev Noul: probability this citizen believes the announcement is true. */
+  belief: z.number().min(0).max(1).optional(),
+  /** Jev Score, normalised to 0-1: how alarmed this citizen is. */
+  alarm: z.number().min(0).max(1).optional(),
 });
 
 export type Decision = z.infer<typeof decisionSchema>;
@@ -53,6 +57,10 @@ export const broadcastResponseSchema = z.object({
   /** Present when the town fell back to the offline simulation. */
   reason: z.string().optional(),
   model: z.string().optional(),
+  /** Whose key paid for this round: the deployment's, or one the visitor supplied. */
+  keySource: z.enum(["server", "visitor"]).optional(),
+  /** Where the broadcast is happening; citizens who go and look walk here. */
+  locationId: z.string().optional(),
   latencyMs: z.number(),
   /** Citizens Jev did not answer for, filled in locally. */
   filledLocally: z.number().int().min(0),

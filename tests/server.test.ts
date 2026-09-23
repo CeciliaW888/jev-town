@@ -80,7 +80,7 @@ describe("POST /api/broadcast", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("falls back to the local simulation and returns 24 decisions when no key is configured", async () => {
+  it("falls back to the local simulation and returns a decision for every citizen when no key is configured", async () => {
     await withServer(null, async (baseUrl) => {
       const res = await realFetch(`${baseUrl}/api/broadcast`, {
         method: "POST",

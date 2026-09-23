@@ -1,43 +1,64 @@
 /**
- * The map. Everything - the SVG scene, the citizen sprites and the destinations
- * each reaction sends people to - is derived from these coordinates, which live in
- * a 160 x 100 design space.
+ * The map. Cloverfield is laid out on a regular street grid: a square of
+ * 5 x 5 city blocks separated by streets, grouped into four named quarters
+ * around a central Fountain Square. Everything - the 3D scene, the citizens'
+ * standing spots and the routes they walk - is derived from the coordinates
+ * in this file, which live in a 120 x 120 design space.
  */
 
-export const MAP_W = 160;
-export const MAP_H = 100;
+export const MAP_W = 120;
+export const MAP_H = 120;
+
+/** Centre-line coordinate of every street, on both axes. */
+export const STREET_LINES = [10, 30, 50, 70, 90, 110] as const;
+
+/** Width of a street, in map units. */
+export const STREET_WIDTH = 4;
+
+/** Distance between neighbouring street centre-lines, i.e. one block plus one street. */
+export const BLOCK_PITCH = 20;
+
+/** Half the width of a block's buildable interior, measured from its centre to the kerb. */
+export const BLOCK_HALF = BLOCK_PITCH / 2 - STREET_WIDTH / 2;
+
+/** Centre coordinate of every block, on both axes. */
+export const BLOCK_CENTRES = [20, 40, 60, 80, 100] as const;
 
 export type PlaceKind = "plaza" | "work" | "home" | "landmark";
+
+export type QuarterId = "willow" | "orchard" | "sunrise" | "harbor" | "centre";
 
 export interface Place {
   id: string;
   label: string;
   kind: PlaceKind;
+  quarter: QuarterId;
+  /** Block centre. Every place owns exactly one block. */
   x: number;
   y: number;
 }
 
 export const PLACES = [
-  { id: "plaza", label: "Fountain Plaza", kind: "plaza", x: 80, y: 52 },
-  { id: "watchtower", label: "Watchtower", kind: "landmark", x: 100, y: 14 },
-  { id: "bakery", label: "Bakery", kind: "work", x: 44, y: 30 },
-  { id: "market", label: "Market", kind: "work", x: 80, y: 24 },
-  { id: "clinic", label: "Clinic", kind: "work", x: 118, y: 30 },
-  { id: "library", label: "Library", kind: "work", x: 134, y: 56 },
-  { id: "forge", label: "Forge", kind: "work", x: 112, y: 76 },
-  { id: "docks", label: "Docks", kind: "work", x: 140, y: 86 },
-  { id: "farm", label: "Farm", kind: "work", x: 24, y: 80 },
-  { id: "tavern", label: "Tavern", kind: "work", x: 58, y: 72 },
-  { id: "school", label: "School", kind: "work", x: 30, y: 52 },
-  { id: "chapel", label: "Chapel", kind: "work", x: 52, y: 12 },
-  { id: "cottage_north", label: "North Cottages", kind: "home", x: 14, y: 22 },
-  { id: "cottage_west", label: "West Cottages", kind: "home", x: 10, y: 44 },
-  { id: "cottage_lane", label: "Millers Lane", kind: "home", x: 16, y: 64 },
-  { id: "cottage_south", label: "South Cottages", kind: "home", x: 44, y: 92 },
-  { id: "cottage_green", label: "Green Row", kind: "home", x: 76, y: 90 },
-  { id: "cottage_hill", label: "Hill Houses", kind: "home", x: 128, y: 12 },
-  { id: "cottage_east", label: "East Cottages", kind: "home", x: 150, y: 40 },
-  { id: "cottage_quay", label: "Quayside Rooms", kind: "home", x: 152, y: 70 },
+  { id: "plaza", label: "Fountain Square", kind: "plaza", quarter: "centre", x: 60, y: 60 },
+  { id: "watchtower", label: "Watchtower", kind: "landmark", quarter: "willow", x: 80, y: 20 },
+  { id: "chapel", label: "Willow Chapel", kind: "work", quarter: "willow", x: 40, y: 20 },
+  { id: "school", label: "Willow School", kind: "work", quarter: "willow", x: 60, y: 20 },
+  { id: "market", label: "Market Hall", kind: "work", quarter: "centre", x: 60, y: 40 },
+  { id: "bakery", label: "Orchard Bakery", kind: "work", quarter: "orchard", x: 20, y: 40 },
+  { id: "farm", label: "Orchard Farm", kind: "work", quarter: "orchard", x: 20, y: 100 },
+  { id: "clinic", label: "Sunrise Clinic", kind: "work", quarter: "sunrise", x: 100, y: 40 },
+  { id: "library", label: "Sunrise Library", kind: "work", quarter: "sunrise", x: 100, y: 80 },
+  { id: "tavern", label: "Harbor Tavern", kind: "work", quarter: "centre", x: 60, y: 80 },
+  { id: "forge", label: "Harbor Forge", kind: "work", quarter: "harbor", x: 80, y: 100 },
+  { id: "docks", label: "Harbor Docks", kind: "work", quarter: "harbor", x: 100, y: 100 },
+  { id: "cottage_north", label: "Willow Lane", kind: "home", quarter: "willow", x: 20, y: 20 },
+  { id: "cottage_hill", label: "Hill Houses", kind: "home", quarter: "willow", x: 100, y: 20 },
+  { id: "cottage_west", label: "Orchard Cottages", kind: "home", quarter: "orchard", x: 20, y: 60 },
+  { id: "cottage_lane", label: "Millers Lane", kind: "home", quarter: "orchard", x: 20, y: 80 },
+  { id: "cottage_east", label: "Sunrise Row", kind: "home", quarter: "sunrise", x: 100, y: 60 },
+  { id: "cottage_quay", label: "Quayside Rooms", kind: "home", quarter: "harbor", x: 80, y: 80 },
+  { id: "cottage_south", label: "South Cottages", kind: "home", quarter: "harbor", x: 40, y: 100 },
+  { id: "cottage_green", label: "Green Row", kind: "home", quarter: "harbor", x: 60, y: 100 },
 ] as const satisfies readonly Place[];
 
 export type PlaceId = (typeof PLACES)[number]["id"];
@@ -50,31 +71,35 @@ export function getPlace(id: PlaceId): Place {
   return place;
 }
 
-/** Roads drawn on the map, as pairs of place ids. */
-export const ROADS: ReadonlyArray<readonly [PlaceId, PlaceId]> = [
-  ["plaza", "market"],
-  ["plaza", "school"],
-  ["plaza", "library"],
-  ["plaza", "tavern"],
-  ["plaza", "clinic"],
-  ["market", "bakery"],
-  ["market", "watchtower"],
-  ["market", "chapel"],
-  ["bakery", "chapel"],
-  ["chapel", "cottage_north"],
-  ["cottage_north", "cottage_west"],
-  ["cottage_west", "school"],
-  ["school", "cottage_lane"],
-  ["cottage_lane", "farm"],
-  ["farm", "cottage_south"],
-  ["cottage_south", "tavern"],
-  ["tavern", "cottage_green"],
-  ["cottage_green", "forge"],
-  ["forge", "docks"],
-  ["docks", "cottage_quay"],
-  ["cottage_quay", "library"],
-  ["library", "cottage_east"],
-  ["cottage_east", "clinic"],
-  ["clinic", "watchtower"],
-  ["watchtower", "cottage_hill"],
+export interface Quarter {
+  id: Exclude<QuarterId, "centre">;
+  label: string;
+  /** Where the quarter's name floats: on the town's outer ring road, facing its blocks. */
+  x: number;
+  y: number;
+}
+
+export const QUARTERS: readonly Quarter[] = [
+  { id: "willow", label: "Willow Quarter", x: 60, y: 10 },
+  { id: "orchard", label: "Orchard Quarter", x: 10, y: 60 },
+  { id: "sunrise", label: "Sunrise Quarter", x: 110, y: 60 },
+  { id: "harbor", label: "Harbor Quarter", x: 60, y: 110 },
 ];
+
+export interface Block {
+  /** Column and row, 0-4. */
+  col: number;
+  row: number;
+  x: number;
+  y: number;
+  /** The place that owns this block, or null for an ordinary residential or park block. */
+  placeId: PlaceId | null;
+}
+
+/** All 25 blocks, row by row, each tagged with the place that owns it (if any). */
+export const BLOCKS: readonly Block[] = BLOCK_CENTRES.flatMap((y, row) =>
+  BLOCK_CENTRES.map((x, col) => {
+    const place = PLACES.find((p) => p.x === x && p.y === y);
+    return { col, row, x, y, placeId: place ? place.id : null };
+  }),
+);

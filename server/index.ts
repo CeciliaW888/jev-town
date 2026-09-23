@@ -6,7 +6,7 @@ const app = createApp();
 
 app.listen(port, () => {
   const configured = loadJevConfig() !== null;
-  console.log(`[server] Signal Town API listening on http://localhost:${port}`);
+  console.log(`[server] Jev Town API listening on http://localhost:${port}`);
   console.log(
     configured
       ? "[server] Jev is configured: real citizen decisions are live."

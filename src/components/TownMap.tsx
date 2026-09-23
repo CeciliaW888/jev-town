@@ -1,7 +1,10 @@
-import type { Action } from "@shared/actions.ts";
-import { CITIZENS, type Citizen } from "@shared/citizens.ts";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
+import { ACTIONS, ACTION_GLYPH, ACTION_LABEL, type Action } from "@shared/actions.ts";
+import { CITIZENS } from "@shared/citizens.ts";
+import { PLACES } from "@shared/town.ts";
 import type { Point } from "@shared/positions.ts";
-import { PLACES, ROADS, getPlace } from "@shared/town.ts";
+import type { TownScene3DHandle } from "../three/TownScene3D.tsx";
+import { isWebglAvailable } from "../three/webgl.ts";
 import { CitizenSprite } from "./CitizenSprite.tsx";
 
 export interface TownMapProps {
@@ -10,79 +13,138 @@ export interface TownMapProps {
   actions: Map<number, Action | null>;
   confidences: Map<number, number | null>;
   focusedAction: Action | null;
+  onFocusAction: (action: Action | null) => void;
 }
 
-const KIND_LABEL: Record<string, string> = {
-  plaza: "plaza",
-  work: "building",
-  home: "homes",
-  landmark: "landmark",
-};
+// Three.js is most of the bundle; load it separately so the rest of the page paints immediately.
+const TownScene3D = lazy(() => import("../three/TownScene3D.tsx").then((m) => ({ default: m.TownScene3D })));
 
-export function TownMap({ positions, durations, actions, confidences, focusedAction }: TownMapProps) {
+function TownFallback() {
   return (
-    <div className="town-map" role="group" aria-label="Town map with 24 citizens">
-      <svg className="town-map__svg" viewBox="0 0 160 100" aria-hidden="true">
-        <rect x={0} y={0} width={160} height={100} className="town-map__ground" />
-        {ROADS.map(([fromId, toId]) => {
-          const from = getPlace(fromId);
-          const to = getPlace(toId);
-          return (
-            <line
-              key={`${fromId}-${toId}`}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              className="town-map__road"
-            />
-          );
-        })}
-        {PLACES.map((place) => (
-          <g key={place.id} className={`town-map__place town-map__place--${place.kind}`}>
-            {place.kind === "plaza" ? (
-              <circle cx={place.x} cy={place.y} r={9} className="town-map__building" />
-            ) : place.kind === "landmark" ? (
-              <polygon
-                points={`${place.x},${place.y - 8} ${place.x - 6},${place.y + 6} ${place.x + 6},${place.y + 6}`}
-                className="town-map__building"
-              />
-            ) : (
-              <rect
-                x={place.x - 6}
-                y={place.y - 5}
-                width={12}
-                height={10}
-                rx={1.6}
-                className="town-map__building"
-              />
-            )}
-            <text x={place.x} y={place.y + (place.kind === "landmark" ? 12 : 10)} className="town-map__label">
-              {place.label}
-            </text>
-          </g>
-        ))}
-      </svg>
+    <div className="town-map__fallback" role="group" aria-label="Town status, text view">
+      <p className="town-map__fallback-title">3D view unavailable</p>
+      <p className="town-map__fallback-copy">
+        This browser or device doesn&apos;t support WebGL, so the 3D town can&apos;t be shown. Broadcasting, scoring and
+        the reaction tallies still work normally.
+      </p>
+    </div>
+  );
+}
 
-      <div className="town-map__citizens">
-        {CITIZENS.map((citizen: Citizen) => {
-          const action = actions.get(citizen.id) ?? null;
-          return (
-            <CitizenSprite
-              key={citizen.id}
-              citizen={citizen}
-              position={positions.get(citizen.id) ?? { x: 80, y: 50 }}
-              durationMs={durations.get(citizen.id) ?? 900}
-              action={action}
-              confidence={confidences.get(citizen.id) ?? null}
-              highlighted={focusedAction !== null && action === focusedAction}
-            />
-          );
-        })}
-      </div>
+export function TownMap({ positions, durations, actions, confidences, focusedAction, onFocusAction }: TownMapProps) {
+  const [supportsWebgl, setSupportsWebgl] = useState<boolean>(() => isWebglAvailable());
+  const [zoom, setZoom] = useState(1);
+  const [showDecisions, setShowDecisions] = useState(true);
+  const sceneRef = useRef<TownScene3DHandle | null>(null);
+  const hotspotsRef = useRef(new Map<number, HTMLButtonElement>());
 
-      <p className="sr-only" aria-live="polite">
-        {`Town map. ${PLACES.length} locations, ${KIND_LABEL.work} workplaces and ${KIND_LABEL.home} home clusters, connected by roads.`}
+  const registerHotspot = useCallback((citizenId: number, element: HTMLButtonElement | null) => {
+    if (element) hotspotsRef.current.set(citizenId, element);
+    else hotspotsRef.current.delete(citizenId);
+  }, []);
+  const getHotspot = useCallback((citizenId: number) => hotspotsRef.current.get(citizenId) ?? null, []);
+  const handleContextLost = useCallback(() => setSupportsWebgl(false), []);
+
+  const counts = new Map<Action, number>(ACTIONS.map((a) => [a, 0]));
+  for (const action of actions.values()) if (action) counts.set(action, (counts.get(action) ?? 0) + 1);
+  const anyDecisions = [...actions.values()].some((a) => a !== null);
+
+  return (
+    <div className="town-map" role="group" aria-label={`Interactive 3D town map with ${CITIZENS.length} citizens`}>
+      {supportsWebgl ? (
+        <div className="town-map__scene">
+          <Suspense fallback={<p className="town-map__loading">Building Cloverfield…</p>}>
+            <TownScene3D
+              ref={sceneRef}
+              citizens={CITIZENS}
+              positions={positions}
+              durations={durations}
+              actions={actions}
+              focusedAction={focusedAction}
+              showDecisions={showDecisions}
+              getHotspot={getHotspot}
+              onZoomChange={setZoom}
+              onContextLost={handleContextLost}
+            />
+          </Suspense>
+
+          <div className="town-map__citizens-layer">
+            {CITIZENS.map((citizen) => {
+              const action = actions.get(citizen.id) ?? null;
+              return (
+                <CitizenSprite
+                  key={citizen.id}
+                  citizen={citizen}
+                  action={action}
+                  confidence={confidences.get(citizen.id) ?? null}
+                  highlighted={focusedAction !== null && action === focusedAction}
+                  registerHotspot={registerHotspot}
+                />
+              );
+            })}
+          </div>
+
+          <div className="map-legend" role="group" aria-label="Reactions. Select one to highlight those citizens.">
+            {ACTIONS.map((action) => (
+              <button
+                key={action}
+                type="button"
+                className={`map-legend__item map-legend__item--${action.toLowerCase()}${
+                  focusedAction === action ? " map-legend__item--active" : ""
+                }`}
+                aria-pressed={focusedAction === action}
+                disabled={!anyDecisions}
+                onClick={() => onFocusAction(focusedAction === action ? null : action)}
+              >
+                <span className="map-legend__glyph" aria-hidden="true">
+                  {ACTION_GLYPH[action]}
+                </span>
+                <span className="map-legend__label">{ACTION_LABEL[action]}</span>
+                {anyDecisions ? <span className="map-legend__count">{counts.get(action)}</span> : null}
+              </button>
+            ))}
+          </div>
+
+          <div className="map-controls" role="group" aria-label="Map view">
+            <div className="map-controls__zoom">
+              <button type="button" aria-label="Zoom out" onClick={() => sceneRef.current?.zoomBy(1 / 1.3)}>
+                −
+              </button>
+              <span className="map-controls__zoom-value" aria-live="polite">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button type="button" aria-label="Zoom in" onClick={() => sceneRef.current?.zoomBy(1.3)}>
+                +
+              </button>
+            </div>
+            <button type="button" aria-label="Rotate left" onClick={() => sceneRef.current?.rotateBy(-Math.PI / 2)}>
+              ⟲
+            </button>
+            <button type="button" aria-label="Rotate right" onClick={() => sceneRef.current?.rotateBy(Math.PI / 2)}>
+              ⟳
+            </button>
+            <button type="button" className="map-controls__text" onClick={() => sceneRef.current?.fitTown()}>
+              Fit town
+            </button>
+            <button type="button" className="map-controls__text" onClick={() => sceneRef.current?.resetView()}>
+              Reset
+            </button>
+            <button
+              type="button"
+              className="map-controls__text"
+              aria-pressed={showDecisions}
+              onClick={() => setShowDecisions((v) => !v)}
+            >
+              Show decisions
+            </button>
+          </div>
+        </div>
+      ) : (
+        <TownFallback />
+      )}
+
+      <p className="sr-only">
+        {`Town map: ${CITIZENS.length} citizens across ${PLACES.length} places in four quarters, rendered as an interactive 3D scene. Drag to pan, right-drag or Shift-drag to rotate, scroll or pinch to zoom.`}
       </p>
     </div>
   );

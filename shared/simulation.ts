@@ -64,7 +64,17 @@ export function simulateDecision(citizen: Citizen, broadcast: string, round: num
   for (const action of ACTIONS) probabilities[action] = weights[action] / total;
 
   const action = argmaxAction(probabilities);
-  return { citizenId: citizen.id, action, confidence: probabilities[action], probabilities };
+  // The fallback fills belief and alarm too, so the offline demo drives the same
+  // meters the live game does rather than silently losing them.
+  const alarmBase = probabilities.FLEE * 1 + probabilities.WARN * 0.85 + probabilities.INVESTIGATE * 0.45 + probabilities.JOIN * 0.3;
+  return {
+    citizenId: citizen.id,
+    action,
+    confidence: probabilities[action],
+    probabilities,
+    belief: Math.min(1, Math.max(0, 0.55 + (bias[action] ?? 0) * 0.12 + rng() * 0.25)),
+    alarm: Math.min(1, Math.max(0, alarmBase)),
+  };
 }
 
 export function simulateAllDecisions(broadcast: string, round: number): Decision[] {

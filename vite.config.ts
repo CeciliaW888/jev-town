@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 const SERVER_PORT = Number(process.env.PORT ?? 8787);
 
 export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? "/signal-town/" : "/",
+  base: process.env.GITHUB_ACTIONS ? "/jev-town/" : "/",
   plugins: [react()],
   resolve: {
     alias: {
@@ -24,6 +24,8 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
+    // The lazily loaded 3D scene chunk is mostly Three.js itself (~135 kB gzipped).
+    chunkSizeWarningLimit: 800,
   },
   test: {
     environment: "node",

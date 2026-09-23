@@ -29,8 +29,14 @@ function pick<T>(items: readonly T[], rng: () => number): T {
   return item as T;
 }
 
+/**
+ * Directive targets were tuned for a town of 24; this keeps them proportional
+ * to however many citizens the town actually has.
+ */
+const TOWN_FACTOR = CITIZENS.length / 24;
+
 function scale(round: number, base: number, perRound: number, cap: number): number {
-  return Math.min(cap, base + Math.floor((round - 1) * perRound));
+  return Math.min(Math.round(cap * TOWN_FACTOR), Math.round(base * TOWN_FACTOR) + Math.floor((round - 1) * perRound * TOWN_FACTOR));
 }
 
 export function goalLabel(goal: Goal): string {
@@ -110,7 +116,7 @@ const TEMPLATES: Template[] = [
   // Quiet alarm: warn without panic.
   (round) => {
     const warn = scale(round, 4, 0.6, 11);
-    const flee = Math.max(1, 4 - Math.floor((round - 1) / 3));
+    const flee = Math.max(1, Math.round(4 * TOWN_FACTOR) - Math.floor((round - 1) / 3));
     return {
       id: "quiet_alarm",
       title: "Quiet Alarm",

@@ -1,49 +1,44 @@
 import { memo } from "react";
-import { ACTION_GLYPH, ACTION_LABEL, type Action } from "@shared/actions.ts";
+import { ACTION_LABEL, type Action } from "@shared/actions.ts";
 import type { Citizen } from "@shared/citizens.ts";
-import type { Point } from "@shared/positions.ts";
 
 export interface CitizenSpriteProps {
   citizen: Citizen;
-  position: Point;
-  durationMs: number;
   action: Action | null;
   confidence: number | null;
   highlighted: boolean;
+  /** Receives the button so the 3D scene can position it over the citizen's figure each frame. */
+  registerHotspot: (citizenId: number, element: HTMLButtonElement | null) => void;
 }
 
-function CitizenSpriteImpl({ citizen, position, durationMs, action, confidence, highlighted }: CitizenSpriteProps) {
+/**
+ * An invisible, keyboard-focusable hit target laid over the 3D canvas at the
+ * citizen's projected screen position. The visible figure lives in the
+ * Three.js scene (see `TownScene3D.tsx`); this button exists so pointer,
+ * keyboard and screen-reader users all get a real element with a name, role
+ * and hover/focus tooltip. The scene writes its `transform` directly, so
+ * camera movement never re-renders React.
+ */
+function CitizenSpriteImpl({ citizen, action, confidence, highlighted, registerHotspot }: CitizenSpriteProps) {
   const pct = confidence !== null ? Math.round(confidence * 100) : null;
 
   return (
     <button
       type="button"
-      className={`citizen palette-${citizen.palette}${highlighted ? " citizen--highlighted" : ""}${
-        action ? ` citizen--${action.toLowerCase()}` : ""
-      }`}
-      style={{
-        left: `${(position.x / 160) * 100}%`,
-        top: `${(position.y / 100) * 100}%`,
-        transitionDuration: `${durationMs}ms`,
-      }}
+      ref={(element) => registerHotspot(citizen.id, element)}
+      className={`citizen-hotspot${highlighted ? " citizen-hotspot--highlighted" : ""}`}
       aria-label={`${citizen.name}, ${citizen.role}. ${
         action ? `Last decision: ${ACTION_LABEL[action]}${pct !== null ? ` at ${pct}% confidence` : ""}.` : "Has not reacted yet."
       }`}
     >
-      <span className="citizen__dot" aria-hidden="true" />
-      {action ? (
-        <span className="citizen__badge" aria-hidden="true">
-          {ACTION_GLYPH[action]}
-        </span>
-      ) : null}
-      <span className="citizen__tooltip" role="tooltip">
+      <span className="citizen-hotspot__tooltip" role="tooltip">
         <strong>{citizen.name}</strong>
-        <span className="citizen__tooltip-role">{citizen.role}</span>
-        <span className="citizen__tooltip-personality">{citizen.personality}</span>
+        <span className="citizen-hotspot__tooltip-role">{citizen.role}</span>
+        <span className="citizen-hotspot__tooltip-personality">{citizen.personality}</span>
         {action ? (
-          <span className="citizen__tooltip-action">
+          <span className="citizen-hotspot__tooltip-action">
             {ACTION_LABEL[action]}
-            {pct !== null ? ` — ${pct}% confident` : ""}
+            {pct !== null ? ` - ${pct}% confident` : ""}
           </span>
         ) : null}
       </span>

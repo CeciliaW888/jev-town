@@ -20,9 +20,9 @@ export const ACTION_CRITERIA: Record<Action, string> = {
   IGNORE:
     "Carry on with whatever they were already doing. The broadcast is irrelevant, beneath their notice, obviously false, or simply not worth interrupting their work for.",
   INVESTIGATE:
-    "Stop working and walk to the plaza to see the situation for themselves before committing to anything. They want first-hand evidence, not a second-hand announcement.",
+    "Stop working and go to wherever this is happening, to see it for themselves before committing to anything. They want first-hand evidence, not a second-hand announcement.",
   JOIN:
-    "Actively take part in what was announced: claim the offer, help with the effort, or throw themselves into the crowd at the centre of it. They want in.",
+    "Actively take part in what was announced: claim the offer, help with the effort, or throw themselves into the crowd at the heart of it. They want in.",
   FLEE:
     "Leave for the safety of their own home and stay there. They judge the situation as dangerous, hostile, or about to get worse for them personally.",
   WARN:
